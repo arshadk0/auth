@@ -1,0 +1,5 @@
+package constant
+
+var USER_SERVICE_NAMESPACE = "Z-USER"
+var API_TRADE_NAMESPACE = "Z-API-TRADE"
+var AUTH_NAMESPACE = "Z-AUTH"
