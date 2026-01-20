@@ -14,13 +14,14 @@ import (
 	"sync"
 	"time"
 
+	"auth"
+	"auth/model"
+	"auth/utility"
+
 	"github.com/gin-gonic/gin"
 	"github.com/go-redis/redis/v8"
 	"github.com/golang-jwt/jwt"
 	"github.com/google/uuid"
-	"github.com/zebpay/zrevampauth"
-	"github.com/zebpay/zrevampauth/model"
-	"github.com/zebpay/zrevampauth/utility"
 )
 
 /*
@@ -44,8 +45,8 @@ var apiKeyClient *model.ApiKeyInfoClient
 var clientInfoClient *model.ClientInfoClient
 
 func InitializeUserAuth(redisClient *redis.Client, maxTimeDiffInMs int64, appClientIDs []string, userServiceURL, JwtEndpoint, apiKeyInfoUrl, clientInfoUrl string, jwtFetchInterval time.Duration) *UserAuthClient {
-	zrevampauth.InitKmsClient()
-	if _, err := zrevampauth.InitializeServerAuth(JwtEndpoint, jwtFetchInterval); err != nil {
+	auth.InitKmsClient()
+	if _, err := auth.InitializeServerAuth(JwtEndpoint, jwtFetchInterval); err != nil {
 		panic("unable to initialize server auth: " + err.Error())
 	}
 	sessionClient = model.InitSessionClient(redisClient, userServiceURL)
@@ -154,7 +155,7 @@ func (uac *UserAuthClient) AuthorizeUser(c *gin.Context, isApiKeyAuthAllowed boo
 		accountId = apiKeyInfo.AccountID
 	} else {
 		token := utility.GetTokenFromHeader(c)
-		kid, pubKey := zrevampauth.GetAuthJWKS()
+		kid, pubKey := auth.GetAuthJWKS()
 		if kid == "" || pubKey == nil {
 			return accountId, http.StatusInternalServerError, fmt.Errorf("Internal server error.")
 		}
@@ -187,7 +188,7 @@ func (uac *UserAuthClient) verifyAccessToken(accessToken string, scopes []string
 			return nil, fmt.Errorf("unexpected signing method: %s", jwtToken.Header["alg"])
 		}
 
-		kid, pubKey := zrevampauth.GetAuthJWKS()
+		kid, pubKey := auth.GetAuthJWKS()
 		key_id, ok := jwtToken.Header["kid"].(string)
 		if !ok || key_id != kid {
 			return nil, fmt.Errorf("invalid key ID")
@@ -261,7 +262,7 @@ func verifyAPIKeyAndSignature(apiKey, signature string, payload string, scopes [
 	if v, ok := apiKeySecretCache.Load(apiKey); ok {
 		apiSecret = v.(string)
 	} else {
-		apiSecret, err = zrevampauth.KmsDecrypt(apiKeyInfo.ApiSecret)
+		apiSecret, err = auth.KmsDecrypt(apiKeyInfo.ApiSecret)
 		if err != nil {
 			return nil, errors.New("internal error")
 		}
