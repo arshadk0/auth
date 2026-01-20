@@ -14,9 +14,9 @@ import (
 	"sync"
 	"time"
 
-	"auth"
-	"auth/model"
-	"auth/utility"
+	"github.com/arshadk0/auth"
+	"github.com/arshadk0/auth/model"
+	"github.com/arshadk0/auth/utility"
 
 	"github.com/gin-gonic/gin"
 	"github.com/go-redis/redis/v8"

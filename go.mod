@@ -1,4 +1,4 @@
-module auth
+module github.com/arshadk0/auth
 
 go 1.24.0
 

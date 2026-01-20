@@ -7,8 +7,8 @@ import (
 	"net/http"
 	"time"
 
-	"auth/external"
-	"auth/utility"
+	"github.com/arshadk0/auth/external"
+	"github.com/arshadk0/auth/utility"
 
 	"github.com/go-redis/redis/v8"
 	mssql "github.com/microsoft/go-mssqldb"

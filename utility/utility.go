@@ -3,7 +3,7 @@ package utility
 import (
 	"fmt"
 
-	"auth/constant"
+	"github.com/arshadk0/auth/constant"
 
 	"github.com/gin-gonic/gin"
 )

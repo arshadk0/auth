@@ -11,7 +11,7 @@ import (
 	"sync"
 	"time"
 
-	"auth/external"
+	"github.com/arshadk0/auth/external"
 )
 
 var (

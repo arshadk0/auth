@@ -4,8 +4,8 @@ import (
 	"fmt"
 	"time"
 
-	"auth/model"
-	"auth/utility"
+	"github.com/arshadk0/auth/model"
+	"github.com/arshadk0/auth/utility"
 
 	"github.com/golang-jwt/jwt"
 )

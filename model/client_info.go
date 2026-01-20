@@ -6,8 +6,8 @@ import (
 	"fmt"
 	"net/http"
 
-	"auth/external"
-	"auth/utility"
+	"github.com/arshadk0/auth/external"
+	"github.com/arshadk0/auth/utility"
 
 	"github.com/go-redis/redis/v8"
 )
