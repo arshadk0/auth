@@ -4,7 +4,6 @@ import (
 	"fmt"
 
 	"github.com/arshadk0/auth/constant"
-
 	"github.com/gin-gonic/gin"
 )
 

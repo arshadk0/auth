@@ -14,10 +14,10 @@ import (
 	"sync"
 	"time"
 
-	"github.com/arshadk0/auth"
-	"github.com/arshadk0/auth/model"
+	zrevampauth "github.com/arshadk0/auth"
+	m "github.com/arshadk0/auth/model"
+	"github.com/arshadk0/auth/user-v1/model"
 	"github.com/arshadk0/auth/utility"
-
 	"github.com/gin-gonic/gin"
 	"github.com/go-redis/redis/v8"
 	"github.com/golang-jwt/jwt"
@@ -32,10 +32,8 @@ It also fetches user data from redis and sets it into context.
 */
 
 type UserAuthClient struct {
-	RedisClient     *redis.Client
 	MaxTimeDiffInMs int64
 	AppClientIDs    []string
-	UserServiceURL  string
 	JwtEndpoint     string
 }
 
@@ -44,21 +42,23 @@ var sessionClient *model.SessionClient
 var apiKeyClient *model.ApiKeyInfoClient
 var clientInfoClient *model.ClientInfoClient
 
-func InitializeUserAuth(redisClient *redis.Client, maxTimeDiffInMs int64, appClientIDs []string, userServiceURL, JwtEndpoint, apiKeyInfoUrl, clientInfoUrl string, jwtFetchInterval time.Duration) *UserAuthClient {
-	auth.InitKmsClient()
-	if _, err := auth.InitializeServerAuth(JwtEndpoint, jwtFetchInterval); err != nil {
-		panic("unable to initialize server auth: " + err.Error())
+func InitializeUserAuth(redisClient *redis.Client, maxTimeDiffInMs int64, appClientIDs []string, userServiceURL, JwtEndpoint, apiKeyInfoUrl, clientInfoUrl string, jwtFetchInterval time.Duration) (*UserAuthClient, error) {
+	if err := zrevampauth.InitKmsClient(); err != nil {
+		return nil, err
 	}
+
+	if err := zrevampauth.FetchJWKSData(JwtEndpoint, jwtFetchInterval); err != nil {
+		return nil, err
+	}
+
 	sessionClient = model.InitSessionClient(redisClient, userServiceURL)
 	apiKeyClient = model.InitApiKeyInfoClient(redisClient, apiKeyInfoUrl)
 	clientInfoClient = model.InitClientInfoClient(redisClient, clientInfoUrl)
 	return &UserAuthClient{
-		RedisClient:     redisClient,
 		MaxTimeDiffInMs: maxTimeDiffInMs,
 		AppClientIDs:    appClientIDs,
-		UserServiceURL:  userServiceURL,
 		JwtEndpoint:     JwtEndpoint,
-	}
+	}, nil
 }
 
 func getClientIP(c *gin.Context) string {
@@ -155,8 +155,7 @@ func (uac *UserAuthClient) AuthorizeUser(c *gin.Context, isApiKeyAuthAllowed boo
 		accountId = apiKeyInfo.AccountID
 	} else {
 		token := utility.GetTokenFromHeader(c)
-		kid, pubKey := auth.GetAuthJWKS()
-		if kid == "" || pubKey == nil {
+		if zrevampauth.AUTH_JWKS_KID == "" || zrevampauth.AUTH_JWKS_PUBLICKEY == nil {
 			return accountId, http.StatusInternalServerError, fmt.Errorf("Internal server error.")
 		}
 
@@ -181,20 +180,19 @@ verifyAccessToken verifies the accessToken based on the publicKey
 The checks include signature, KID value, Signing method, Expiry
 */
 func (uac *UserAuthClient) verifyAccessToken(accessToken string, scopes []string, clientIP string, sessionToken string) (int, int, bool, error) {
-	claims := &model.UserClaims{}
+	claims := &m.UserClaims{}
 	isBot := false
 	token, err := jwt.ParseWithClaims(accessToken, claims, func(jwtToken *jwt.Token) (interface{}, error) {
 		if _, ok := jwtToken.Method.(*jwt.SigningMethodRSA); !ok {
 			return nil, fmt.Errorf("unexpected signing method: %s", jwtToken.Header["alg"])
 		}
 
-		kid, pubKey := auth.GetAuthJWKS()
 		key_id, ok := jwtToken.Header["kid"].(string)
-		if !ok || key_id != kid {
+		if !ok || key_id != zrevampauth.AUTH_JWKS_KID {
 			return nil, fmt.Errorf("invalid key ID")
 		}
 
-		return pubKey, nil
+		return zrevampauth.AUTH_JWKS_PUBLICKEY, nil
 	})
 
 	if err != nil {
@@ -262,7 +260,7 @@ func verifyAPIKeyAndSignature(apiKey, signature string, payload string, scopes [
 	if v, ok := apiKeySecretCache.Load(apiKey); ok {
 		apiSecret = v.(string)
 	} else {
-		apiSecret, err = auth.KmsDecrypt(apiKeyInfo.ApiSecret)
+		apiSecret, err = zrevampauth.KmsDecrypt(apiKeyInfo.ApiSecret)
 		if err != nil {
 			return nil, errors.New("internal error")
 		}

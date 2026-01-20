@@ -1,25 +1,21 @@
-package auth
+package zrevampauth
 
 import (
-	"context"
 	"encoding/base64"
-	"sync"
 
-	"github.com/aws/aws-sdk-go-v2/config"
-	"github.com/aws/aws-sdk-go-v2/service/kms"
+	"github.com/aws/aws-sdk-go/aws/session"
+	"github.com/aws/aws-sdk-go/service/kms"
 )
 
-var KmsClient *kms.Client
-var kmsOnce sync.Once
+var KmsClient *kms.KMS
 
-func InitKmsClient() {
-	kmsOnce.Do(func() {
-		cfg, err := config.LoadDefaultConfig(context.Background())
-		if err != nil {
-			panic("unable to load SDK config, " + err.Error())
-		}
-		KmsClient = kms.NewFromConfig(cfg)
-	})
+func InitKmsClient() error {
+	sess, err := session.NewSession()
+	if err != nil {
+		return err
+	}
+	KmsClient = kms.New(sess)
+	return nil
 }
 
 func KmsDecrypt(encryptedData string) (string, error) {
@@ -35,7 +31,7 @@ func KmsDecrypt(encryptedData string) (string, error) {
 	}
 
 	// Decrypt
-	result, err := KmsClient.Decrypt(context.Background(), input)
+	result, err := KmsClient.Decrypt(input)
 	if err != nil {
 		return "", err
 	}

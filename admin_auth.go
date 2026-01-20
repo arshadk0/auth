@@ -1,4 +1,4 @@
-package auth
+package zrevampauth
 
 import (
 	"bytes"
@@ -63,7 +63,7 @@ func (aac *AdminAuthClient) AuthorizeRequest(authHeader string, checkBodyHash bo
 	})
 
 	if err != nil {
-		return http.StatusUnauthorized, fmt.Errorf("error parsing token: %w", err)
+		return http.StatusUnauthorized, fmt.Errorf("Error parsing token: " + err.Error())
 	}
 
 	if !token.Valid {

@@ -1,4 +1,4 @@
-package auth
+package zrevampauth
 
 import (
 	"fmt"
@@ -6,7 +6,6 @@ import (
 
 	"github.com/arshadk0/auth/model"
 	"github.com/arshadk0/auth/utility"
-
 	"github.com/golang-jwt/jwt"
 )
 
@@ -30,9 +29,8 @@ func InitializeServerAuth(jwksEndpoint string, jwksFetchInterval time.Duration) 
 }
 
 func (sac *ServerAuthClient) VerifyAuthToken(accessToken string, scope string) (*model.UserClaims, error) {
-	kid, pubKey := GetAuthJWKS()
-	if kid == "" || pubKey == nil {
-		return nil, fmt.Errorf("AuthorizeUser: auth JWKS values not set (kid=%v, public_key=%v)", kid, pubKey)
+	if AUTH_JWKS_KID == "" || AUTH_JWKS_PUBLICKEY == nil {
+		return nil, fmt.Errorf("AuthorizeUser", "Auth JWKS values not set", fmt.Errorf("KID: %+v, PUBLIC_KEY: %+v", AUTH_JWKS_KID, AUTH_JWKS_PUBLICKEY))
 	}
 
 	userClaims, err := verifyAccessToken(accessToken, scope, sac.JwksEndpoint)
@@ -55,13 +53,12 @@ func verifyAccessToken(accessToken string, scope string, jwksEndpoint string) (*
 			return nil, fmt.Errorf("unexpected signing method: %s", jwtToken.Header["alg"])
 		}
 
-		kid, pubKey := GetAuthJWKS()
 		key_id, ok := jwtToken.Header["kid"].(string)
-		if !ok || key_id != kid {
+		if !ok || key_id != AUTH_JWKS_KID {
 			return nil, fmt.Errorf("invalid key ID")
 		}
 
-		return pubKey, nil
+		return AUTH_JWKS_PUBLICKEY, nil
 	})
 
 	if err != nil {

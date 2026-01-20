@@ -5,31 +5,11 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
-	"time"
 
 	"github.com/arshadk0/auth/external"
 	"github.com/arshadk0/auth/utility"
-
 	"github.com/go-redis/redis/v8"
-	mssql "github.com/microsoft/go-mssqldb"
 )
-
-type ZebPaySession struct {
-	Id           int
-	SessionToken mssql.UniqueIdentifier
-	ExpiryDate   time.Time
-	ApiKeyId     int
-	DeviceId     int
-	AccountId    int
-	AppId        int
-	PublicGUID   mssql.UniqueIdentifier
-	PrivateGUID  mssql.UniqueIdentifier
-	CreateDate   time.Time
-	ModifyDate   time.Time
-	CreatedBy    string
-	ModifiedBy   string
-	Status       int
-}
 
 type SessionClient struct {
 	RedisClient    *redis.Client

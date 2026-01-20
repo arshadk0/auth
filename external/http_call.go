@@ -2,8 +2,7 @@ package external
 
 import (
 	"bytes"
-	"fmt"
-	"io"
+	"io/ioutil"
 	"net/http"
 	"time"
 )
@@ -21,10 +20,6 @@ const (
 
 const DefaultTimeOut = 60 * time.Second
 
-var defaultHTTPClient = &http.Client{
-	Timeout: DefaultTimeOut,
-}
-
 type HTTPCallParams struct {
 	Method  HTTPMethod
 	URL     string
@@ -34,6 +29,9 @@ type HTTPCallParams struct {
 }
 
 func HTTPCall(params *HTTPCallParams) (int, []byte, error) {
+	client := &http.Client{
+		Timeout: DefaultTimeOut,
+	}
 	req, err := http.NewRequest(string(params.Method), params.URL, bytes.NewBuffer(params.Payload))
 	if err != nil {
 		return 0, []byte{}, err
@@ -41,7 +39,7 @@ func HTTPCall(params *HTTPCallParams) (int, []byte, error) {
 	if len(params.Params) > 0 {
 		q := req.URL.Query()
 		for k, v := range params.Params {
-			q.Add(k, fmt.Sprint(v))
+			q.Add(k, v.(string))
 		}
 		req.URL.RawQuery = q.Encode()
 	}
@@ -52,7 +50,7 @@ func HTTPCall(params *HTTPCallParams) (int, []byte, error) {
 	}
 	req.Header.Add("Accept", "application/json")
 	req.Header.Add("Content-Type", "application/json")
-	resp, err := defaultHTTPClient.Do(req)
+	resp, err := client.Do(req)
 	if err != nil {
 		return http.StatusBadGateway, []byte{}, err
 	}
@@ -60,7 +58,7 @@ func HTTPCall(params *HTTPCallParams) (int, []byte, error) {
 		return 500, []byte{}, err
 	}
 	defer resp.Body.Close()
-	bodyBytes, err := io.ReadAll(resp.Body)
+	bodyBytes, err := ioutil.ReadAll(resp.Body)
 	if err != nil {
 		return resp.StatusCode, []byte{}, err
 	}
