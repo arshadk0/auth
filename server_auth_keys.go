@@ -1,4 +1,4 @@
-package zrevampauth
+package auth
 
 import (
 	"crypto/rsa"
@@ -11,7 +11,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/zebpay/zrevampauth/external"
+	"auth/external"
 )
 
 var (

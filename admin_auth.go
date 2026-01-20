@@ -1,4 +1,4 @@
-package zrevampauth
+package auth
 
 import (
 	"bytes"

@@ -7,10 +7,11 @@ import (
 	"net/http"
 	"time"
 
+	"auth/external"
+	"auth/utility"
+
 	"github.com/go-redis/redis/v8"
 	mssql "github.com/microsoft/go-mssqldb"
-	"github.com/zebpay/zrevampauth/external"
-	"github.com/zebpay/zrevampauth/utility"
 )
 
 type ZebPaySession struct {

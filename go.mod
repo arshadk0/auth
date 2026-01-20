@@ -1,4 +1,4 @@
-module github.com/zebpay/zrevampauth
+module auth
 
 go 1.24.0
 

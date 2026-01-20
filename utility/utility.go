@@ -3,8 +3,9 @@ package utility
 import (
 	"fmt"
 
+	"auth/constant"
+
 	"github.com/gin-gonic/gin"
-	"github.com/zebpay/zrevampauth/constant"
 )
 
 func StringInSlice(s string, list []string) bool {

@@ -6,9 +6,10 @@ import (
 	"fmt"
 	"net/http"
 
+	"auth/external"
+	"auth/utility"
+
 	"github.com/go-redis/redis/v8"
-	"github.com/zebpay/zrevampauth/external"
-	"github.com/zebpay/zrevampauth/utility"
 )
 
 type ClientInfo struct {

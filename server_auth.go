@@ -1,12 +1,13 @@
-package zrevampauth
+package auth
 
 import (
 	"fmt"
 	"time"
 
+	"auth/model"
+	"auth/utility"
+
 	"github.com/golang-jwt/jwt"
-	"github.com/zebpay/zrevampauth/model"
-	"github.com/zebpay/zrevampauth/utility"
 )
 
 type ServerAuthClient struct {
