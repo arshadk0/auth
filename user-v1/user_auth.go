@@ -71,108 +71,99 @@ func getClientIP(c *gin.Context) string {
 	return c.ClientIP()
 }
 
-func (uac *UserAuthClient) AuthorizeUser(c *gin.Context, isApiKeyAuthAllowed bool, scopes []string) (int, int, error) {
-	// Check for API key header
-	var accountId, status int
-	var err error
-	isBot := false
-	apiKey := c.GetHeader("X-AUTH-APIKEY")
-	if apiKey != "" {
-		isBot = true
-		// check only the exchange API routes are allowed
-		if !isApiKeyAuthAllowed {
-			return accountId, http.StatusUnauthorized, fmt.Errorf("Invalid Access.")
-		}
-
-		// Perform signature-based authentication
-		signature := c.GetHeader("X-AUTH-SIGNATURE")
-		if signature == "" {
-			return accountId, http.StatusUnauthorized, fmt.Errorf("missing signature")
-		}
-
-		// Verify timestamp
-		var timestamp int64
-		var payload string
-		if c.Request.Method == http.MethodGet || c.Request.Method == http.MethodDelete {
-			timestampStr := c.Query("timestamp")
-			if timestampStr == "" {
-				return accountId, http.StatusBadRequest, fmt.Errorf("missing timestamp")
-			}
-			timestamp, err = strconv.ParseInt(timestampStr, 10, 64)
-			payload = c.Request.URL.RawQuery
-		} else if c.Request.Method == http.MethodPost || c.Request.Method == http.MethodPut {
-			body, err := io.ReadAll(c.Request.Body)
-			if err != nil {
-				return accountId, http.StatusBadRequest, fmt.Errorf("Invalid request body.")
-			}
-			var requestBody map[string]interface{}
-			if err := json.Unmarshal(body, &requestBody); err != nil {
-				return accountId, http.StatusBadRequest, fmt.Errorf("Invalid request body.")
-			}
-
-			// Handle timestamp as both number and string
-			if tsValue, exists := requestBody["timestamp"]; exists {
-				switch v := tsValue.(type) {
-				case float64:
-					// Handle as number (default JSON unmarshaling for numbers)
-					timestamp = int64(v)
-				case string:
-					// Handle as string - parse to int64
-					if parsedTs, err := strconv.ParseInt(v, 10, 64); err == nil {
-						timestamp = parsedTs
-					} else {
-						return accountId, http.StatusUnauthorized, fmt.Errorf("Invalid timestamp format.")
-					}
-				case int64:
-					// Handle as int64 (in case of direct int type)
-					timestamp = v
-				case int:
-					// Handle as int (in case of int type)
-					timestamp = int64(v)
-				default:
-					return accountId, http.StatusUnauthorized, fmt.Errorf("Timestamp must be a number or string.")
-				}
-			} else {
-				return accountId, http.StatusUnauthorized, fmt.Errorf("missing timestamp")
-			}
-			payload = string(body)
-			c.Request.Body = io.NopCloser(bytes.NewReader(body)) // Preserve body
-		}
-
-		if err != nil || !uac.isTimestampValid(timestamp) {
-			return accountId, http.StatusUnauthorized, fmt.Errorf("Invalid or expired timestamp.")
-		}
-
-		// Verify API key and signature
-		apiKeyInfo, err := verifyAPIKeyAndSignature(apiKey, signature, payload, scopes, getClientIP(c))
-		if err != nil {
-			errMsg := "Unauthorized, invalid API key or signature."
-			if err.Error() != "" {
-				errMsg = err.Error()
-			}
-			return accountId, http.StatusUnauthorized, fmt.Errorf("%s", errMsg)
-		}
-		accountId = apiKeyInfo.AccountID
-	} else {
-		token := utility.GetTokenFromHeader(c)
-		if zrevampauth.AUTH_JWKS_KID == "" || zrevampauth.AUTH_JWKS_PUBLICKEY == nil {
-			return accountId, http.StatusInternalServerError, fmt.Errorf("Internal server error.")
-		}
-
-		sessionToken := c.Request.Header.Get("sessiontoken")
-
-		status, accountId, isBot, err = uac.verifyAccessToken(token, scopes, getClientIP(c), sessionToken)
-		if err != nil {
-			errMsg := "Unauthorized, invalid access token."
-			if err.Error() != "" {
-				errMsg = err.Error()
-			}
-			return accountId, status, fmt.Errorf("%s", errMsg)
-		}
+func (uac *UserAuthClient) VerifyApiKeyAndSig(c *gin.Context, apiKey string, scopes []string) (accountId int, status int, err error) {
+	// Perform signature-based authentication
+	signature := c.GetHeader("X-AUTH-SIGNATURE")
+	if signature == "" {
+		return accountId, http.StatusUnauthorized, fmt.Errorf("missing signature")
 	}
 
+	// Verify timestamp
+	var timestamp int64
+	var payload string
+	if c.Request.Method == http.MethodGet || c.Request.Method == http.MethodDelete {
+		timestampStr := c.Query("timestamp")
+		if timestampStr == "" {
+			return accountId, http.StatusBadRequest, fmt.Errorf("missing timestamp")
+		}
+		timestamp, err = strconv.ParseInt(timestampStr, 10, 64)
+		payload = c.Request.URL.RawQuery
+	} else if c.Request.Method == http.MethodPost || c.Request.Method == http.MethodPut {
+		body, err := io.ReadAll(c.Request.Body)
+		if err != nil {
+			return accountId, http.StatusBadRequest, fmt.Errorf("Invalid request body.")
+		}
+		var requestBody map[string]interface{}
+		if err := json.Unmarshal(body, &requestBody); err != nil {
+			return accountId, http.StatusBadRequest, fmt.Errorf("Invalid request body.")
+		}
+
+		// Handle timestamp as both number and string
+		if tsValue, exists := requestBody["timestamp"]; exists {
+			switch v := tsValue.(type) {
+			case float64:
+				// Handle as number (default JSON unmarshaling for numbers)
+				timestamp = int64(v)
+			case string:
+				// Handle as string - parse to int64
+				if parsedTs, err := strconv.ParseInt(v, 10, 64); err == nil {
+					timestamp = parsedTs
+				} else {
+					return accountId, http.StatusUnauthorized, fmt.Errorf("Invalid timestamp format.")
+				}
+			case int64:
+				// Handle as int64 (in case of direct int type)
+				timestamp = v
+			case int:
+				// Handle as int (in case of int type)
+				timestamp = int64(v)
+			default:
+				return accountId, http.StatusUnauthorized, fmt.Errorf("Timestamp must be a number or string.")
+			}
+		} else {
+			return accountId, http.StatusUnauthorized, fmt.Errorf("missing timestamp")
+		}
+		payload = string(body)
+		c.Request.Body = io.NopCloser(bytes.NewReader(body)) // Preserve body
+	}
+
+	if err != nil || !uac.isTimestampValid(timestamp) {
+		return accountId, http.StatusUnauthorized, fmt.Errorf("Invalid or expired timestamp.")
+	}
+
+	// Verify API key and signature
+	apiKeyInfo, err := verifyAPIKeyAndSignature(apiKey, signature, payload, scopes, getClientIP(c))
+	if err != nil {
+		errMsg := "Unauthorized, invalid API key or signature."
+		if err.Error() != "" {
+			errMsg = err.Error()
+		}
+		return accountId, http.StatusUnauthorized, fmt.Errorf("%s", errMsg)
+	}
+
+	accountId = apiKeyInfo.AccountID
+	c.Set("isBot", true)
+	return
+}
+
+func (uac *UserAuthClient) VerifyToken(c *gin.Context, token string, scopes []string) (accountId int, status int, err error) {
+	if zrevampauth.AUTH_JWKS_KID == "" || zrevampauth.AUTH_JWKS_PUBLICKEY == nil {
+		return accountId, http.StatusInternalServerError, fmt.Errorf("Internal server error.")
+	}
+
+	sessionToken := c.Request.Header.Get("sessiontoken")
+
+	isBot := false
+	status, accountId, isBot, err = uac.verifyAccessToken(token, scopes, getClientIP(c), sessionToken)
+	if err != nil {
+		errMsg := "Unauthorized, invalid access token."
+		if err.Error() != "" {
+			errMsg = err.Error()
+		}
+		return accountId, status, fmt.Errorf("%s", errMsg)
+	}
 	c.Set("isBot", isBot)
-	return accountId, 0, nil
+	return
 }
 
 /*
@@ -246,7 +237,7 @@ func (uac *UserAuthClient) verifyAccessToken(accessToken string, scopes []string
 		}
 	}
 
-	return 0, claims.AccountID, isBot, nil
+	return http.StatusOK, claims.AccountID, isBot, nil
 }
 
 func verifyAPIKeyAndSignature(apiKey, signature string, payload string, scopes []string, clientIP string) (*model.ApiKeyInfo, error) {
