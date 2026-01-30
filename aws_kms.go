@@ -3,6 +3,7 @@ package zrevampauth
 import (
 	"encoding/base64"
 
+	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/kms"
 )
@@ -10,7 +11,9 @@ import (
 var KmsClient *kms.KMS
 
 func InitKmsClient() error {
-	sess, err := session.NewSession()
+	sess, err := session.NewSession(&aws.Config{
+		Region: aws.String("ap-southeast-1"),
+	})
 	if err != nil {
 		return err
 	}
